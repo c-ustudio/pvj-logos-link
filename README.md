@@ -56,10 +56,10 @@ The first real start installs `delivery_module` and `chat_module` and can take a
 
 1. **Phone**: PVJ Pro on the same network as the laptop. OSC input is on by default (UDP 4855).
 2. **Laptop**: `run-pvj.bat` (or `./run.sh --mode pvj --pvj <phone-ip> --confirm`).
-3. **Control**: from Logos Chat, open a direct conversation with the bridge's address and send `bpm 126; slot 2`. Sequence changes land on the phone's next bar.
+3. **Control**: from Logos Chat, open a direct conversation with the bridge's address and send `bpm 126; slot 2`. Sequence changes land on the phone's next bar; `next`, `prev` and `clip 3` (or `clip <name>`) change clip at once.
 4. **Lock it**: add `--allow <your Logos address>`, or anyone who has the address can drive the phone.
 
-**Two phones, two places.** On the phone that leads, set `[osc] out_enabled=true` and `out_targets="<laptop-ip>:9000"` in PVJ's `settings.cfg`. Run a bridge next to each phone and pass the other bridge's address with `--peer`. Changes on the leading phone (tempo, mode, crossfade mode, lane B) reach the other phone as cues, at most one a second.
+**Two phones, two places.** On the phone that leads, open LIB ▸ OSC, turn OSC OUT on and set OUT TARGETS to `<laptop-ip>:9000` (older Pro builds: `[osc] out_enabled=true` and `out_targets="<laptop-ip>:9000"` in PVJ's `settings.cfg`). LIB ▸ OSC also shows the phone's IP for `--pvj`. Run a bridge next to each phone and pass the other bridge's address with `--peer`. Changes on the leading phone (tempo, mode, crossfade mode, lane B) reach the other phone as cues, at most one a second.
 
 **No phone?** `python tools/fake_pvj.py` listens on 4855 like PVJ and prints what it gets; `--out 127.0.0.1:9000` makes it send PVJ-style state back.
 

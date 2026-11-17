@@ -27,7 +27,7 @@ LANES = ("a", "b")
 
 HELP = ("PVJ commands: bpm <40-300> · slot <1-6> [a|b] · auto on|off [a|b] · "
         "mode manual|sequential|random|lfo · xfade <0-1> · xfade manual|beat|audio|lfo · "
-        "laneb on|off · laneb clip|net|td   (join several with ;)")
+        "laneb on|off · laneb clip|net|td · next · prev · clip <number|name>   (join several with ;)")
 
 
 class CommandError(ValueError):
@@ -126,6 +126,12 @@ def parse_command(text: str) -> list:
         cmd, rest = w[0].lstrip("/"), w[1:]
         if cmd == "help":
             raise CommandError(HELP)
+        # Deck transport (PVJ /pvj/deck/*): applied at once on the phone, like a tap.
+        if cmd in ("next", "prev"):
+            if rest:
+                raise CommandError(f"'{cmd}' takes no value")
+            msgs.append((f"/pvj/deck/{cmd}", []))
+            continue
         if not rest:
             raise CommandError(f"'{cmd}' needs a value. {HELP}")
         v = rest[0]
@@ -156,6 +162,16 @@ def parse_command(text: str) -> list:
                 except ValueError:
                     raise CommandError(f"xfade is 0-1 or one of {', '.join(XFADE_MODES)}")
                 msgs.append(("/pvj/xfade", [max(0.0, min(1.0, x))]))
+        elif cmd == "clip":
+            # A number is the clip number PVJ's status line shows (CLIP 3/31 -> 3);
+            # anything else is a name, matched by PVJ without case (file name,
+            # name without extension, folder/name, or a library id).
+            if v.isdigit():
+                if int(v) < 1:
+                    raise CommandError("clip numbers start at 1")
+                msgs.append(("/pvj/deck/clip", [int(v)]))
+            else:
+                msgs.append(("/pvj/deck/clip", [" ".join(rest)]))
         elif cmd in ("laneb", "lane_b", "lane-b"):
             if v in LANE_B_SOURCES:
                 msgs.append(("/pvj/lane_b/source", [v]))

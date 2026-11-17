@@ -21,6 +21,8 @@ Case-insensitive; several in one message separated by `;`.
 | `xfade beat` | Crossfade mode: `manual`, `beat`, `audio` or `lfo` | `/pvj/xfade/mode s` |
 | `laneb on` / `laneb off` | Arm lane B | `/pvj/lane_b/arm i` |
 | `laneb clip` | Lane B source: `clip`, `net` or `td` | `/pvj/lane_b/source s` |
+| `next` / `prev` | Next or previous clip, at once (like PVJ's NEXT/PREV buttons) | `/pvj/deck/next`, `/pvj/deck/prev` |
+| `clip 3` / `clip pvj_loop_07` | Jump to a clip, at once: its number as PVJ shows it (`CLIP 3/31`), or its name (file name with or without extension, any case) | `/pvj/deck/clip i` or `s` |
 | `help` | Replies with this list (with `--confirm`) | none |
 
 Anything else is rejected whole: a message is applied completely or not at all.
@@ -35,11 +37,11 @@ Anything else is rejected whole: a message is applied completely or not at all.
  "xfade": 0.5,
  "seq": {"slot": 3, "auto": 1, "lane": "a"},
  "lane_b": {"arm": 1, "source": "clip"},
- "clip": "loop_07"}
+ "clip": "pvj_loop_07.mp4"}
 ```
 
 - Every field except `v` and `type` is optional; a cue carries only what changed, plus a full keyframe every 30 s.
-- `clip` is informational in v1: PVJ reports it (`/pvj/out/clip`) but does not take clip commands over OSC yet (`/pvj/deck/clip` is reserved in PVJ's namespace).
+- `clip` is the playing clip's file name with its extension, exactly as PVJ sends it in `/pvj/out/clip` (a string). Cues report it; they do not set it. To change clip, send the `clip` command: PVJ's `/pvj/deck/clip` accepts that same file name, so a reported value can be sent straight back.
 - Unknown fields are ignored, so v1 receivers accept cues from later senders.
 
 ## Rate and timing
@@ -50,7 +52,7 @@ Logos Delivery limits how often each publisher can send. The bridge therefore:
 - never sends per-beat or per-frame data (`/pvj/out/beat`, `/pvj/out/bar`, tracking);
 - sends crossfader moves only with `--sync-xfade`, coarsened to steps of 0.05.
 
-Timing is left to the receiver: PVJ applies `/pvj/seq/*` on its own next downbeat, so a cue that arrives a little late still lands on the bar. Tempo follows PVJ's rule of one tempo authority: send `bpm` to the main phone and its link spreads it to the others.
+Timing is left to the receiver: PVJ applies `/pvj/seq/*` on its own next downbeat (`next`, `prev` and `clip` apply at once, like a button), so a cue that arrives a little late still lands on the bar. Tempo follows PVJ's rule of one tempo authority: send `bpm` to the main phone and its link spreads it to the others.
 
 ## Security
 
