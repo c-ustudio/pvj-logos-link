@@ -43,6 +43,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_VISUAL = ROOT / "examples" / "signals" / "visual"
+# delivery_module 0.3.3 ships no Windows build (only darwin-arm64, linux-amd64, linux-arm64);
+# 0.3.2 does, and chat_module 0.3.0 accepts it (>=0.3.0). Checked 2026-11-17.
+DEFAULT_PACKAGES = ("delivery_module@0.3.2,chat_module@0.3.0" if os.name == "nt"
+                    else "delivery_module,chat_module")
 LOG_DIR = ROOT / "logs"
 
 # --------------------------------------------------------------------------- logging
@@ -375,10 +379,13 @@ class LogosLink(threading.Thread):
                 raise RuntimeError("logosctl daemon did not start (see session/logs)")
 
         listing = json.dumps(ctl.run("module", "ls", timeout=60) or {})
-        missing = [p for p in a.packages.split(",") if p and p not in listing]
-        if missing:
-            self.state("connecting", f"installing {', '.join(missing)}")
-            ctl.run("package", "install", *missing, "-y", timeout=900)
+        for spec in [x.strip() for x in a.packages.split(",") if x.strip()]:
+            name, _, version = spec.partition("@")
+            if name in listing:
+                continue
+            self.state("connecting", f"installing {spec}")
+            extra = ["--version", version] if version else []
+            ctl.run("package", "install", name, *extra, "-y", timeout=900)
 
         self.state("connecting", f"loading {a.module}")
         ctl.run("module", "load", a.module, timeout=180)
@@ -596,7 +603,8 @@ def main() -> None:
     ap.add_argument("--logosctl", help="path to logosctl if not on PATH")
     ap.add_argument("--session", default=str(ROOT / "session"), help="logosctl session dir (kept inside this folder)")
     ap.add_argument("--module", default="chat_module")
-    ap.add_argument("--packages", default="delivery_module,chat_module")
+    ap.add_argument("--packages", default=DEFAULT_PACKAGES,
+                    help="Logos packages to install, name or name@version, comma-separated")
     ap.add_argument("--preset", default="logos.test")
     ap.add_argument("--reply", default="", help="optional fixed auto-reply to each sender")
     ap.add_argument("--peer", default="", help="Logos address of another bridge to send cues to")

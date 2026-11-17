@@ -67,7 +67,16 @@ The first real start installs `delivery_module` and `chat_module` and can take a
 
 People install Logos Basecamp, add **Chat** from the Package Manager, open a direct conversation with the address on screen and send a message. On a public screen the bridge caps messages at 120 characters, allows one per sender every 15 s, drops anything matching `blocklist.txt`, and the operator can pause (`P`) or hide (`H`). Press `?` in the visual for all keys.
 
+## Windows notes (Basecamp 0.3.2, checked 2026-11-17)
+
+- `delivery_module` 0.3.3, the newest, ships no Windows build (only darwin-arm64, linux-amd64, linux-arm64); Basecamp downloads it and then refuses it. 0.3.2 has one. In Basecamp, open **Chat** under Applications and pick Delivery Module **v0.3.2** before installing; don't press **Update** afterwards. The bridge pins `delivery_module@0.3.2` on Windows for the same reason.
+- Untick the optional **RLN Module** and **libp2p Networking** in that dialog: `libp2p_module` and `liblogos_lez_rln_module` have no Windows builds either.
+- On some machines Basecamp's dialog buttons react to a double-click, not a single click.
+- Windows Firewall may ask about `logos_host`. Outgoing connections are enough for Chat; incoming ones matter only for serving Storage files and for PVJ's `/pvj/out` reaching the bridge (set the network to Private).
+
 ## Open questions (for the Logos team)
+
+- Will `delivery_module` 0.3.3+ get a Windows build again (and `libp2p_module`, `liblogos_lez_rln_module`)?
 
 - Do senders need an RLN membership to publish on `logos.test` with the current Chat build?
 - A chat installation gets a new address on every `init`. Is there a way to keep a stable address across restarts for a public demo?
