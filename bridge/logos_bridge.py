@@ -627,7 +627,16 @@ def main() -> None:
     mod = Moderator(a.max_len, a.cooldown if a.mode == "signals" else min(a.cooldown, 0.5), Path(a.blocklist))
     deliver = Deliver(hub, osc, mod)
 
-    server = ThreadingHTTPServer((a.host, a.port), make_handler(hub, deliver, mod, Path(a.visual)))
+    server = None
+    for port in range(a.port, a.port + 20):
+        try:
+            server = ThreadingHTTPServer((a.host, port), make_handler(hub, deliver, mod, Path(a.visual)))
+            break
+        except OSError as e:  # in use, or inside a range Windows reserves (Hyper-V / WSL)
+            log(f"port {port} unavailable ({e}), trying {port + 1}")
+    if server is None:
+        raise SystemExit(f"no free port between {a.port} and {a.port + 19}; pass --port")
+    a.port = server.server_address[1]
     server.daemon_threads = True
     threading.Thread(target=server.serve_forever, daemon=True).start()
     url = f"http://{'127.0.0.1' if a.host in ('0.0.0.0', '') else a.host}:{a.port}/"
@@ -679,4 +688,17 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise
+    except Exception:
+        import traceback
+        tb = traceback.format_exc()
+        try:
+            log("CRASH\n" + tb)
+        except Exception:
+            print(tb)
+        if os.name == "nt":
+            input("The bridge stopped with an error (see above and logs/). Press Enter to close.")
+        sys.exit(1)

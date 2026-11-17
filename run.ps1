@@ -52,3 +52,7 @@ if ($Reply)   { $a += @('--reply', $Reply) }
 
 Write-Host "Starting pvj-logos-link ($Mode). Close this window or press Ctrl+C to stop."
 & $py @a
+if ($LASTEXITCODE -ne 0) {
+  Write-Host "The bridge exited with code $LASTEXITCODE. The log is in the logs folder." -ForegroundColor Yellow
+  Read-Host "Press Enter to close"
+}
