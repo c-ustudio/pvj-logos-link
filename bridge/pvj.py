@@ -24,10 +24,13 @@ MODES = ("manual", "sequential", "random", "lfo")
 XFADE_MODES = ("manual", "beat", "audio", "lfo")
 LANE_B_SOURCES = ("clip", "net", "td")
 LANES = ("a", "b")
+ASCII_MODES = ("brightness", "binary", "random", "custom")
+TEXT_MAX = 64   # PVJ's ASCII shader has 64 cells
 
 HELP = ("PVJ commands: bpm <40-300> · slot <1-6> [a|b] · auto on|off [a|b] · "
         "mode manual|sequential|random|lfo · xfade <0-1> · xfade manual|beat|audio|lfo · "
-        "laneb on|off · laneb clip|net|td · next · prev · clip <number|name>   (join several with ;)")
+        "laneb on|off · laneb clip|net|td · next · prev · clip <number|name> · "
+        "text <message> · ascii brightness|binary|random|custom   (join several with ;)")
 
 
 class CommandError(ValueError):
@@ -126,6 +129,16 @@ def parse_command(text: str) -> list:
         cmd, rest = w[0].lstrip("/"), w[1:]
         if cmd == "help":
             raise CommandError(HELP)
+        # A message on PVJ's screen (/pvj/fx/ascii/text): it TAKES OVER the look —
+        # ASCII on, Custom mode, the cells spell the text. Keeps the sender's words
+        # (PVJ shows A-Z and 0-9; anything else is a blank cell).
+        if cmd == "text":
+            words = part.strip().split(None, 1)
+            msg = " ".join(words[1].split()) if len(words) > 1 else ""
+            if not msg:
+                raise CommandError("'text' needs a message, e.g. text HELLO LOGOS")
+            msgs.append(("/pvj/fx/ascii/text", [msg[:TEXT_MAX]]))
+            continue
         # Deck transport (PVJ /pvj/deck/*): applied at once on the phone, like a tap.
         if cmd in ("next", "prev"):
             if rest:
@@ -172,6 +185,10 @@ def parse_command(text: str) -> list:
                 msgs.append(("/pvj/deck/clip", [int(v)]))
             else:
                 msgs.append(("/pvj/deck/clip", [" ".join(rest)]))
+        elif cmd == "ascii":
+            if v not in ASCII_MODES:
+                raise CommandError(f"ascii is one of {', '.join(ASCII_MODES)}")
+            msgs.append(("/pvj/fx/ascii/mode", [v]))
         elif cmd in ("laneb", "lane_b", "lane-b"):
             if v in LANE_B_SOURCES:
                 msgs.append(("/pvj/lane_b/source", [v]))
@@ -210,6 +227,10 @@ def from_cue(cue: dict) -> list:
             msgs.append(("/pvj/lane_b/arm", [int(lb["arm"])]))
         if lb.get("source") in LANE_B_SOURCES:
             msgs.append(("/pvj/lane_b/source", [lb["source"]]))
+    if isinstance(cue.get("text"), str) and cue["text"].strip():
+        msgs.append(("/pvj/fx/ascii/text", [" ".join(cue["text"].split())[:TEXT_MAX]]))
+    if cue.get("ascii") in ASCII_MODES:
+        msgs.append(("/pvj/fx/ascii/mode", [cue["ascii"]]))
     if not msgs:
         raise CommandError("cue carries nothing PVJ understands")
     return msgs

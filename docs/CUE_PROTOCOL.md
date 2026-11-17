@@ -22,6 +22,8 @@ Case-insensitive; several in one message separated by `;`.
 | `laneb on` / `laneb off` | Arm lane B | `/pvj/lane_b/arm i` |
 | `laneb clip` | Lane B source: `clip`, `net` or `td` | `/pvj/lane_b/source s` |
 | `next` / `prev` | Next or previous clip, at once (like PVJ's NEXT/PREV buttons) | `/pvj/deck/next`, `/pvj/deck/prev` |
+| `text HELLO LOGOS` | A message on screen. **Takes over**: PVJ turns its ASCII effect on, in Custom mode, and the characters spell the message (64 max; letters and digits show, anything else is a gap) | `/pvj/fx/ascii/text s` |
+| `ascii custom` | ASCII glyph mode `brightness`, `binary`, `random` or `custom`; doesn't turn the effect on | `/pvj/fx/ascii/mode s` |
 | `clip 3` / `clip pvj_loop_07` | Jump to a clip, at once: its number as PVJ shows it (`CLIP 3/31`), or its name (file name with or without extension, any case) | `/pvj/deck/clip i` or `s` |
 | `help` | Replies with this list (with `--confirm`) | none |
 
@@ -42,6 +44,7 @@ Anything else is rejected whole: a message is applied completely or not at all.
 
 - Every field except `v` and `type` is optional; a cue carries only what changed, plus a full keyframe every 30 s.
 - `clip` is the playing clip's file name with its extension, exactly as PVJ sends it in `/pvj/out/clip` (a string). Cues report it; they do not set it. To change clip, send the `clip` command: PVJ's `/pvj/deck/clip` accepts that same file name, so a reported value can be sent straight back.
+- `text` (a string) and `ascii` (`brightness|binary|random|custom`) set PVJ's on-screen message and ASCII mode, like the `text` and `ascii` commands; bridges don't report them.
 - Unknown fields are ignored, so v1 receivers accept cues from later senders.
 
 ## Rate and timing

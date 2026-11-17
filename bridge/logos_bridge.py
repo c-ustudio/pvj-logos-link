@@ -579,7 +579,7 @@ def mock_pvj_source(adapter, deliver: Deliver, hub: Hub, every: float) -> None:
                   address="mock-0x" + "".join(random.choice("0123456789abcdef") for _ in range(40)))
     cmds = ["bpm 124", "slot 2", "mode random", "xfade beat", "slot 4 b", "laneb on", "bpm 128.5",
             "mode sequential", "auto on", "xfade 0.5", "laneb clip", "slot 1",
-            "next", "prev", "clip 3"]
+            "next", "prev", "clip 3", "text HELLO LOGOS", "ascii binary"]
     sender = "0x" + "".join(random.choice("0123456789abcdef") for _ in range(40))
     while True:
         time.sleep(random.uniform(every * 0.6, every * 1.4))
