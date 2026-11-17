@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Signals: every message is a frequency</title>
+<style>
+  :root { --hue: 190; --fg: #f2f3f5; --dim: rgba(242,243,245,.55); --faint: rgba(242,243,245,.28); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #050507; color: var(--fg); overflow: hidden;
+    font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif; cursor: none; }
+  body.cursor { cursor: default; }
+  canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+  .layer { position: fixed; inset: 0; pointer-events: none; }
+  #title { position: fixed; top: 3.2vh; left: 3vw; font-size: clamp(12px, 1.1vw, 18px); letter-spacing: .32em;
+    text-transform: uppercase; color: var(--dim); }
+  #detail { position: fixed; top: 3.2vh; right: 3vw; font-size: clamp(11px, .9vw, 15px); color: var(--faint);
+    text-align: right; max-width: 40vw; }
+  #stage { position: fixed; inset: 0; display: grid; place-items: center; padding: 0 9vw; }
+  #msg { text-align: center; max-width: 82vw; opacity: 0; transition: opacity 1.4s ease; }
+  #msg.show { opacity: 1; transition: opacity .25s ease; }
+  #msg .text { font-size: clamp(30px, 5.6vw, 112px); font-weight: 600; line-height: 1.08; letter-spacing: -.01em;
+    text-shadow: 0 0 .08em rgba(0,0,0,.9), 0 0 .5em hsla(var(--hue), 90%, 60%, .55), 0 0 1.6em hsla(var(--hue), 90%, 55%, .35); word-break: break-word; }
+  #stage::before { content: ""; position: absolute; left: 50%; top: 50%; width: 90vw; height: 46vh; transform: translate(-50%, -50%);
+    background: radial-gradient(closest-side, rgba(5,5,7,.72), rgba(5,5,7,0)); opacity: 0; transition: opacity 1.4s ease; }
+  #stage:has(#msg.show)::before { opacity: 1; transition: opacity .25s ease; }
+  #msg { position: relative; }
+  #msg .meta { margin-top: 1.4vh; font: 500 clamp(11px, 1vw, 17px) ui-monospace, "Cascadia Mono", Consolas, monospace;
+    color: hsla(var(--hue), 80%, 75%, .9); letter-spacing: .08em; }
+  #recent { position: fixed; left: 3vw; bottom: 16vh; width: 38vw; display: flex; flex-direction: column-reverse; gap: .6vh; }
+  #recent div { font-size: clamp(11px, .95vw, 16px); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    text-shadow: 0 0 6px #050507, 0 0 12px #050507; }
+  #recent div b { font-weight: 500; font-family: ui-monospace, Consolas, monospace; margin-right: .8em; }
+  #bar { position: fixed; left: 3vw; right: 3vw; bottom: 3.5vh; display: flex; align-items: flex-end; gap: 2.5vw;
+    border-top: 1px solid rgba(255,255,255,.12); padding-top: 1.6vh; }
+  #bar .how { flex: 0 0 auto; font-size: clamp(11px, 1vw, 17px); color: var(--dim); line-height: 1.4; }
+  #bar .how strong { color: var(--fg); font-weight: 600; }
+  #address { flex: 1 1 auto; font: 500 clamp(11px, 1.05vw, 18px) ui-monospace, "Cascadia Mono", Consolas, monospace;
+    color: var(--fg); word-break: break-all; line-height: 1.35; }
+  #stat { flex: 0 0 auto; text-align: right; font-size: clamp(11px, 1vw, 17px); color: var(--dim); white-space: nowrap; }
+  #stat i { display: inline-block; width: .65em; height: .65em; border-radius: 50%; margin-right: .5em; background: #888; vertical-align: .05em; }
+  #stat i.online { background: #3ddc84; box-shadow: 0 0 .6em #3ddc84; }
+  #stat i.connecting, #stat i.starting { background: #f5b83d; animation: blink 1.2s infinite; }
+  #stat i.error { background: #ff5a5a; }
+  #stat i.mock { background: #5ab4ff; }
+  #count { font-variant-numeric: tabular-nums; color: var(--fg); }
+  #paused { position: fixed; top: 3.2vh; left: 50%; transform: translateX(-50%); font-size: 13px; letter-spacing: .2em;
+    color: #f5b83d; display: none; }
+  #help { position: fixed; right: 3vw; bottom: 14vh; background: rgba(10,10,14,.92); border: 1px solid rgba(255,255,255,.14);
+    border-radius: 10px; padding: 14px 18px; font: 13px/1.7 ui-monospace, Consolas, monospace; color: var(--dim); display: none; }
+  #help kbd { color: var(--fg); display: inline-block; min-width: 1.6em; }
+  body.noaddr #bar { display: none; }
+  body.noaddr #recent { bottom: 5vh; }
+  @keyframes blink { 50% { opacity: .35; } }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div class="layer">
+  <div id="title">Signals · every message is a frequency</div>
+  <div id="detail"></div>
+  <div id="paused">INTAKE PAUSED</div>
+  <div id="stage"><div id="msg"><div class="text"></div><div class="meta"></div></div></div>
+  <div id="recent"></div>
+  <div id="bar">
+    <div class="how">Send a message with <strong>Logos Chat</strong><br>(in Logos Basecamp) to</div>
+    <div id="address">connecting to Logos…</div>
+    <div id="stat"><i id="dot" class="starting"></i><span id="count">0</span> signals</div>
+  </div>
+  <div id="help">
+    <div><kbd>F</kbd> fullscreen</div>
+    <div><kbd>M</kbd> sound on/off</div>
+    <div><kbd>H</kbd> hide current message</div>
+    <div><kbd>P</kbd> pause / resume intake</div>
+    <div><kbd>T</kbd> test message</div>
+    <div><kbd>A</kbd> show / hide address bar</div>
+    <div><kbd>?</kbd> this help</div>
+  </div>
+</div>
+<script>
+"use strict";
+// ---------------------------------------------------------------- settings
+const HOLD_MS = 7500;           // how long a message stays big
+const WAVE_LIFE_S = 90;         // how long its frequency line keeps sounding visually
+const MAX_WAVES = 16;
+const RECENT = 6;
+
+// ---------------------------------------------------------------- WebGL field
+const canvas = document.getElementById("gl");
+const gl = canvas.getContext("webgl", { antialias: false, premultipliedAlpha: false });
+const VS = `attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }`;
+const FS = `
+precision highp float;
+uniform vec2 u_res; uniform float u_time; uniform float u_pulse;
+uniform vec4 u_w[${MAX_WAVES}];   // x: freq Hz, y: hue 0-1, z: amplitude 0-1, w: seed
+vec3 hsv2rgb(vec3 c){ vec3 p = abs(fract(c.xxx + vec3(0.0, 2.0/3.0, 1.0/3.0)) * 6.0 - 3.0);
+  return c.z * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), c.y); }
+float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+void main(){
+  vec2 uv = gl_FragCoord.xy / u_res;
+  float asp = u_res.x / u_res.y;
+  vec3 col = vec3(0.018, 0.018, 0.026);
+  for (int i = 0; i < ${MAX_WAVES}; i++) {
+    vec4 w = u_w[i];
+    if (w.z < 0.002) continue;
+    float fi = float(i);
+    float k = w.x / 38.0;
+    float y0 = 0.5 + (fi - ${((MAX_WAVES - 1) / 2).toFixed(1)}) * 0.042;
+    float env = 0.55 + 0.45 * sin(uv.x * 3.14159);
+    float drift = sin(u_time * 0.07 + w.w * 6.28) * 0.03;
+    float y = y0 + drift + w.z * 0.11 * env * sin(uv.x * asp * k + u_time * (0.5 + w.x / 500.0) + w.w * 40.0);
+    float d = abs(uv.y - y) * u_res.y;
+    float core = exp(-d * 0.55);
+    float glow = exp(-d * 0.045) * 0.22;
+    col += hsv2rgb(vec3(w.y, 0.62, 1.0)) * (core + glow) * w.z;
+  }
+  col += u_pulse * vec3(0.05, 0.05, 0.07);
+  col += (hash(uv * u_res + fract(u_time)) - 0.5) * 0.03;
+  vec2 q = uv - 0.5; col *= 1.0 - dot(q, q) * 0.95;
+  gl_FragColor = vec4(col, 1.0);
+}`;
+function shader(type, src) {
+  const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+const prog = gl.createProgram();
+gl.attachShader(prog, shader(gl.VERTEX_SHADER, VS));
+gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, FS));
+gl.linkProgram(prog); gl.useProgram(prog);
+const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+const loc = gl.getAttribLocation(prog, "p"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+const U = { res: gl.getUniformLocation(prog, "u_res"), time: gl.getUniformLocation(prog, "u_time"),
+            pulse: gl.getUniformLocation(prog, "u_pulse"), w: gl.getUniformLocation(prog, "u_w") };
+
+const waves = [];   // {freq, hue, seed, born}
+const idle = { freq: 220, hue: 0.53, seed: 0.37, born: -1e9, idle: true };
+let pulse = 0, slot = 0;
+function addWave(freq, hue) {
+  const w = { freq, hue, seed: Math.random(), born: performance.now() / 1000 };
+  if (waves.length < MAX_WAVES) waves.push(w); else { waves[slot] = w; slot = (slot + 1) % MAX_WAVES; }
+  pulse = 1;
+}
+function amp(w, t) {
+  if (w.idle) return 0;
+  const age = t - w.born;
+  if (age < 0) return 0;
+  const attack = Math.min(1, age / 1.2);
+  const decay = Math.max(0, 1 - age / WAVE_LIFE_S);
+  return attack * (0.25 + 0.75 * Math.exp(-age / 14)) * decay;
+}
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.floor(innerWidth * dpr); canvas.height = Math.floor(innerHeight * dpr);
+  gl.viewport(0, 0, canvas.width, canvas.height);
+}
+addEventListener("resize", resize); resize();
+const wbuf = new Float32Array(MAX_WAVES * 4);
+function frame(ms) {
+  const t = ms / 1000;
+  wbuf.fill(0);
+  let live = 0;
+  waves.forEach((w, i) => { const a = amp(w, t); wbuf.set([w.freq, w.hue, a, w.seed], i * 4); if (a > 0.01) live++; });
+  if (!live) wbuf.set([idle.freq, idle.hue, 0.18 + 0.05 * Math.sin(t * 0.5), idle.seed], 0);  // never a black screen
+  pulse *= 0.94;
+  gl.uniform2f(U.res, canvas.width, canvas.height);
+  gl.uniform1f(U.time, t);
+  gl.uniform1f(U.pulse, pulse);
+  gl.uniform4fv(U.w, wbuf);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ---------------------------------------------------------------- sound (off until M or a click)
+let audio = null, soundOn = false;
+function tone(freq) {
+  if (!soundOn) return;
+  if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+  const t = audio.currentTime, o = audio.createOscillator(), o2 = audio.createOscillator(), g = audio.createGain();
+  o.type = "sine"; o.frequency.value = freq; o2.type = "triangle"; o2.frequency.value = freq * 2.003;
+  const g2 = audio.createGain(); g2.gain.value = 0.18;
+  o.connect(g); o2.connect(g2); g2.connect(g); g.connect(audio.destination);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.09, t + 0.08);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 4.5);
+  o.start(t); o2.start(t); o.stop(t + 4.6); o2.stop(t + 4.6);
+}
+
+// ---------------------------------------------------------------- text
+const $ = id => document.getElementById(id);
+const msgEl = $("msg"), textEl = msgEl.querySelector(".text"), metaEl = msgEl.querySelector(".meta");
+let hideTimer = 0, scrambleTimer = 0;
+const GLYPHS = "▖▗▘▙▚▛▜▝▞▟░▒▓01<>/\\|=+*#%";
+function scramble(target) {
+  clearInterval(scrambleTimer);
+  const chars = [...target]; let step = 0; const steps = 18;
+  scrambleTimer = setInterval(() => {
+    step++;
+    const revealed = Math.floor(chars.length * step / steps);
+    textEl.textContent = chars.map((c, i) => i < revealed || c === " " ? c : GLYPHS[(Math.random() * GLYPHS.length) | 0]).join("");
+    if (step >= steps) { clearInterval(scrambleTimer); textEl.textContent = target; }
+  }, 33);
+}
+function showBig(m) {
+  document.documentElement.style.setProperty("--hue", Math.round(m.hue * 360));
+  metaEl.textContent = `${m.sender} · ${Math.round(m.freq)} Hz`;
+  msgEl.classList.add("show");
+  scramble(m.text);
+  clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => msgEl.classList.remove("show"), HOLD_MS);
+}
+const recent = [];
+function pushRecent(m) {
+  recent.unshift(m); recent.length = Math.min(recent.length, RECENT);
+  $("recent").replaceChildren(...recent.map((r, i) => {
+    const d = document.createElement("div");
+    d.style.opacity = String(1 - i / (RECENT + 1));
+    const b = document.createElement("b"); b.textContent = r.sender;
+    b.style.color = `hsl(${Math.round(r.hue * 360)} 80% 70%)`;
+    d.append(b, document.createTextNode(r.text));
+    return d;
+  }).reverse());
+}
+function onMessage(m, live = true) {
+  addWave(m.freq, m.hue);
+  if (live) { showBig(m); tone(m.freq); }
+  pushRecent(m);
+}
+
+// ---------------------------------------------------------------- state
+function setState(s) {
+  if (s.address) $("address").textContent = s.address;
+  if (s.state) { $("dot").className = s.mode === "mock" ? "mock" : s.state; }
+  if (typeof s.count === "number") $("count").textContent = s.count;
+  $("detail").textContent = s.detail || "";
+  $("paused").style.display = s.paused ? "block" : "none";
+}
+const es = new EventSource("/events");
+es.onmessage = ev => {
+  const d = JSON.parse(ev.data);
+  if (d.type === "hello") { setState(d); (d.recent || []).forEach(m => onMessage(m, false)); }
+  else if (d.type === "state") setState(d);
+  else if (d.type === "message") { $("count").textContent = d.id; onMessage(d, true); }
+};
+es.onerror = () => { $("dot").className = "connecting"; $("detail").textContent = "bridge not reachable, retrying…"; };
+
+// ---------------------------------------------------------------- operator keys
+function control(action) { fetch(`/control?action=${action}`, { method: "POST" }).catch(() => {}); }
+let paused = false, cursorTimer = 0;
+addEventListener("keydown", e => {
+  const k = e.key.toLowerCase();
+  if (k === "f") { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
+  else if (k === "m") { soundOn = !soundOn; if (soundOn) { if (!audio) audio = new AudioContext(); audio.resume(); tone(330); } $("detail").textContent = soundOn ? "sound on" : "sound off"; }
+  else if (k === "h") { clearTimeout(hideTimer); msgEl.classList.remove("show"); }
+  else if (k === "p") { paused = !paused; control(paused ? "pause" : "resume"); }
+  else if (k === "t") { control("test"); }
+  else if (k === "a") { document.body.classList.toggle("noaddr"); }
+  else if (k === "?" || k === "/") { const h = $("help"); h.style.display = h.style.display === "block" ? "none" : "block"; }
+});
+addEventListener("mousemove", () => { document.body.classList.add("cursor"); clearTimeout(cursorTimer); cursorTimer = setTimeout(() => document.body.classList.remove("cursor"), 2000); });
+</script>
+</body>
+</html>

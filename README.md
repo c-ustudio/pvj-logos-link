@@ -1,0 +1,91 @@
+# pvj-logos-link
+
+Connects [Logos](https://logos.co) to live visuals. A small bridge brings up a Logos Chat node through `logosctl` and turns messages into OSC for [PVJ](https://c-u.studio/tools/pvj), TouchDesigner or Bitwig, and PVJ's state back into Logos messages. By [Collective Unconscious](https://c-u.studio).
+
+```
+              Logos network (Delivery, end-to-end encrypted Chat)
+                 ▲                                      ▲
+   Logos Chat ───┘                                      └─── another pvj-logos-link
+   (anyone's Basecamp)                                        (another venue, another phone)
+                 │
+         logosctl + chat_module
+                 │
+          bridge/logos_bridge.py ──── OSC /pvj/...  ──▶ PVJ phone(s)  (UDP 4855)
+                 │              ◀─── OSC /pvj/out ──── PVJ phone     (UDP 9000)
+                 ├──── OSC /logos/... ──▶ TouchDesigner, Bitwig       (UDP 7000)
+                 └──── SSE ──▶ browser visual (examples/signals)      (http://127.0.0.1:8765)
+```
+
+**Status: alpha, on the Logos testnet.** The bridge, the PVJ mapping and the Signals visual are tested with mocks and a fake PVJ. The live Logos path is next (see Open questions).
+
+## Modes
+
+| Mode | What happens |
+| --- | --- |
+| `signals` (default) | Every message becomes a frequency: a wave line, the text and a tone in the browser visual, plus `/logos/message` OSC. Built for the Freequencies night in Lisbon. |
+| `pvj` | Messages become PVJ commands (`bpm 128`, `slot 3`, `mode random`) over PVJ's OSC namespace. PVJ's `/pvj/out` state goes to another bridge as JSON cues, so two phones in different places stay in step. |
+
+The message format is in [docs/CUE_PROTOCOL.md](docs/CUE_PROTOCOL.md).
+
+## Run it
+
+Needs Python 3.9+ (standard library only). `logosctl` is installed on the first real run from the official Logos script; its session lives in `session/` inside this folder.
+
+**Windows**: double-click
+
+| File | Does |
+| --- | --- |
+| `run-signals-mock.bat` | Signals with fake messages, no Logos |
+| `run-signals.bat` | Signals on the Logos testnet |
+| `run-pvj-mock.bat` | Fake PVJ commands to a phone, no Logos |
+| `run-pvj.bat` | Logos Chat → PVJ phone; asks for the phone's IP, replies `ok: ...` to senders |
+| `stop-logos.bat` | Stops the Logos runtime (the next start gets a new address) |
+
+**macOS / Linux**
+
+```sh
+./run.sh --mock                                    # Signals, fake messages
+./run.sh                                           # Signals on the testnet
+./run.sh --mode pvj --pvj 192.168.1.40 --confirm   # Logos -> PVJ
+python3 bridge/logos_bridge.py --help              # every option
+```
+
+The first real start installs `delivery_module` and `chat_module` and can take a few minutes before the status turns green. The node's Logos address shows at the bottom of the visual and in `logos-address.txt`.
+
+## PVJ mode in practice
+
+1. **Phone**: PVJ Pro on the same network as the laptop. OSC input is on by default (UDP 4855).
+2. **Laptop**: `run-pvj.bat` (or `./run.sh --mode pvj --pvj <phone-ip> --confirm`).
+3. **Control**: from Logos Chat, open a direct conversation with the bridge's address and send `bpm 126; slot 2`. Sequence changes land on the phone's next bar.
+4. **Lock it**: add `--allow <your Logos address>`, or anyone who has the address can drive the phone.
+
+**Two phones, two places.** On the phone that leads, set `[osc] out_enabled=true` and `out_targets="<laptop-ip>:9000"` in PVJ's `settings.cfg`. Run a bridge next to each phone and pass the other bridge's address with `--peer`. Changes on the leading phone (tempo, mode, crossfade mode, lane B) reach the other phone as cues, at most one a second.
+
+**No phone?** `python tools/fake_pvj.py` listens on 4855 like PVJ and prints what it gets; `--out 127.0.0.1:9000` makes it send PVJ-style state back.
+
+## Signals in practice
+
+People install Logos Basecamp, add **Chat** from the Package Manager, open a direct conversation with the address on screen and send a message. On a public screen the bridge caps messages at 120 characters, allows one per sender every 15 s, drops anything matching `blocklist.txt`, and the operator can pause (`P`) or hide (`H`). Press `?` in the visual for all keys.
+
+## Open questions (for the Logos team)
+
+- Do senders need an RLN membership to publish on `logos.test` with the current Chat build?
+- A chat installation gets a new address on every `init`. Is there a way to keep a stable address across restarts for a public demo?
+- The bridge reads `logosctl watch chat_module --json` loosely (named or positional `data`); raw events are logged to `logs/events-*.ndjson`. A confirmed example of `message_received` would let us tighten it.
+- Is Chat the right carrier for machine cues, or should bridges publish on a Delivery content topic directly (with its own rate limit)?
+
+## Files
+
+```
+bridge/logos_bridge.py     the bridge: logosctl session, Chat node, HTTP + SSE, OSC out, modes
+bridge/pvj.py              PVJ adapter: commands and cues <-> PVJ's OSC namespace
+examples/signals/visual/   the Signals visual (WebGL, Server-Sent Events, Web Audio)
+docs/CUE_PROTOCOL.md       commands, JSON cues, rates, OSC addresses
+tools/fake_pvj.py          a stand-in PVJ phone for testing
+blocklist.txt              words that keep a message off the Signals screen
+run.ps1, run.sh, *.bat     launchers
+```
+
+## License
+
+To be decided before the repo is shared (Logos itself is dual MIT / Apache-2.0).
