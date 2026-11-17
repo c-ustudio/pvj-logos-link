@@ -71,6 +71,7 @@ People install Logos Basecamp, add **Chat** from the Package Manager, open a dir
 
 - `delivery_module` 0.3.3, the newest, ships no Windows build (only darwin-arm64, linux-amd64, linux-arm64); Basecamp downloads it and then refuses it. 0.3.2 has one. In Basecamp, open **Chat** under Applications and pick Delivery Module **v0.3.2** before installing; don't press **Update** afterwards. The bridge pins `delivery_module@0.3.2` on Windows for the same reason.
 - Untick the optional **RLN Module** and **libp2p Networking** in that dialog: `libp2p_module` and `liblogos_lez_rln_module` have no Windows builds either.
+- **A Windows node can receive but not send on `logos.test`.** `delivery_module` attaches an RLN proof to every message; with no RLN module it parks each send and retries forever (`Failed to attach RLN proof … parking task for a later round` in the daemon log), while the status still says Online. Chat messages from Basecamp on Windows never reach the bridge, and the bridge's `ok:` replies and `--peer` cues never leave. Checked 2026-11-17.
 - On some machines Basecamp's dialog buttons react to a double-click, not a single click.
 - Windows Firewall may ask about `logos_host`. Outgoing connections are enough for Chat; incoming ones matter only for serving Storage files and for PVJ's `/pvj/out` reaching the bridge (set the network to Private).
 
@@ -78,7 +79,8 @@ People install Logos Basecamp, add **Chat** from the Package Manager, open a dir
 
 - Will `delivery_module` 0.3.3+ get a Windows build again (and `libp2p_module`, `liblogos_lez_rln_module`)?
 
-- Do senders need an RLN membership to publish on `logos.test` with the current Chat build?
+- ~~Do senders need an RLN membership to publish on `logos.test`?~~ Yes. Every sending node needs `liblogos_rln_module` (macOS/Linux only) and a membership registered on LEZ, paid from the node's payer account: about 250,000,000 native LEZ units, and the testnet has no faucet (Logos docs, `docs/lez/rln/register-rln-membership-on-lez-with-delivery-node.md`). On Linux the bridge installs the modules (`--packages delivery_module,chat_module,liblogos_rln_module`), syncs the LEZ wallet (~5 min), then logs `waiting for <payer> to hold 182800000 native`.
+- How should a public demo get testnet LEZ for every sender? (A faucet, or memberships for Basecamp users?) And when will the RLN modules have Windows builds?
 - A chat installation gets a new address on every `init`. Is there a way to keep a stable address across restarts for a public demo?
 - The bridge reads `logosctl watch chat_module --json` loosely (named or positional `data`); raw events are logged to `logs/events-*.ndjson`. A confirmed example of `message_received` would let us tighten it.
 - Is Chat the right carrier for machine cues, or should bridges publish on a Delivery content topic directly (with its own rate limit)?
