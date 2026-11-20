@@ -97,4 +97,4 @@ run.ps1, run.sh, *.bat     launchers
 
 ## License
 
-To be decided before the repo is shared (Logos itself is dual MIT / Apache-2.0).
+[MIT](LICENSE). PVJ itself is a separate app and is not part of this repository.

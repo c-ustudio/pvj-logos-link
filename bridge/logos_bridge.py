@@ -474,7 +474,7 @@ class LogosLink(threading.Thread):
 MOCK_TEXTS = [
     "hello from the other side of the room", "privacy is a frequency", "can you hear this?",
     "olá lisboa", "signal > noise", "sent from a laptop, no server in between",
-    "who else is on the testnet tonight", "bona nit des de Begur", "every message is a note",
+    "who else is on the testnet tonight", "bona nit", "every message is a note",
     "turn it up", "parallel societies need parallel channels", "bass please", "testing 1 2 3",
 ]
 
